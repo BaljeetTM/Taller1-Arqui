@@ -10,6 +10,7 @@ using Shortly.Endpoints;
 using Shortly.Infrastructure;
 using Shortly.Infrastructure.Persistence;
 using Shortly.Infrastructure.Repositories;
+using Shortly.Infrastructure.Middleware;
 
 // Creates the ASP.NET Core application builder with initial configuration
 var builder = WebApplication.CreateBuilder(args);
@@ -83,6 +84,8 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
 }
+
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 // Redirects HTTP requests to HTTPS automatically
 // app.UseHttpsRedirection();
