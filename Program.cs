@@ -60,6 +60,18 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/Error";
     });
 
+// Allows only trusted browser clients to call the redirect endpoint; CORS preflight is handled with the narrowest policy possible.
+var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("TrustedClientOrigins", policy =>
+    {
+        policy.WithOrigins(allowedCorsOrigins)
+            .WithMethods("GET")
+            .WithHeaders("Accept", "Content-Type");
+    });
+});
+
 // Injects the ticket store into the cookie options after the service provider is built
 builder.Services.AddSingleton<IConfigureOptions<CookieAuthenticationOptions>>(sp =>
 {
@@ -144,6 +156,9 @@ app.UseStaticFiles();
 // Enables request routing
 app.UseRouting();
 
+// Applies the CORS middleware so endpoint-specific policy metadata can answer preflight requests.
+app.UseCors();
+
 // Enables authentication (must come after UseRouting)
 app.UseAuthentication();
 
@@ -165,7 +180,7 @@ app.MapOpenApi();
 app.MapScalarApiReference();
 
 // Maps the redirect endpoint GET /{shortUrl} from Endpoints/UrlRedirectEndpoint.cs
-app.MapUrlRedirect();
+app.MapUrlRedirect().RequireCors("TrustedClientOrigins");
 
 // Creates a scope for scoped services (e.g. AppDbContext)
 using (var scope = app.Services.CreateScope())
