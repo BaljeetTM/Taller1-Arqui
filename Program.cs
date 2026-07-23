@@ -12,6 +12,7 @@ using Shortly.Infrastructure;
 using Shortly.Infrastructure.Persistence;
 using Shortly.Infrastructure.Repositories;
 using Shortly.Infrastructure.Middleware;
+using Microsoft.AspNetCore.ResponseCompression;
 
 // Creates the ASP.NET Core application builder with initial configuration
 var builder = WebApplication.CreateBuilder(args);
@@ -91,6 +92,25 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true; // Safe here: responses aren't attacker-influenced secrets (mitigates BREACH-style risk only when secrets are reflected in compressible responses).
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        new[] { "application/json", "application/problem+json", "image/svg+xml" });
+});
+
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Fastest;
+});
+
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Fastest;
+});
+
 // Registers the authorization service
 builder.Services.AddAuthorization();
 
@@ -108,6 +128,8 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
 }
+
+app.UseResponseCompression();
 
 app.UseMiddleware<PerformanceMiddleware>();
 
