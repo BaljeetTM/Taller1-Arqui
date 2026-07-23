@@ -21,6 +21,8 @@ public class Link
 
     [Required] public int Clicks { get; private set; }
 
+    [Required] public DateTime CreatedAt { get; private set; }
+
     [ForeignKey(nameof(User))]
     public long UserId { get; private set; }
 
@@ -45,6 +47,7 @@ public class Link
             : throw new ArgumentOutOfRangeException(nameof(userId), "UserId must be greater than zero.");
 
         Clicks = 0;
+        CreatedAt = DateTime.UtcNow;
     }
 
     public void IncrementClicks() => Clicks++;
