@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
+using Microsoft.AspNetCore.RateLimiting;
 using Scalar.AspNetCore;
 using Serilog;
 using Shortly.Application.Interfaces;
@@ -67,6 +68,29 @@ builder.Services.AddSingleton<IConfigureOptions<CookieAuthenticationOptions>>(sp
         options => options.SessionStore = store);
 });
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddFixedWindowLimiter("login", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(5);
+        opt.QueueLimit = 0;
+    });
+
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.Headers.RetryAfter =
+            context.Lease.TryGetMetadata(System.Threading.RateLimiting.MetadataName.RetryAfter, out var retryAfter)
+                ? ((int)retryAfter.TotalSeconds).ToString()
+                : "300";
+
+        await context.HttpContext.Response.WriteAsync(
+            "Too many login attempts. Please try again later.", cancellationToken);
+    };
+});
+
 // Registers the authorization service
 builder.Services.AddAuthorization();
 
@@ -85,6 +109,8 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
 }
 
+app.UseMiddleware<PerformanceMiddleware>();
+
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
 // Redirects HTTP requests to HTTPS automatically
@@ -101,6 +127,8 @@ app.UseAuthentication();
 
 // Enables authorization (must come after UseAuthentication)
 app.UseAuthorization();
+
+app.UseRateLimiter();
 
 // Maps static assets with automatic versioning
 app.MapStaticAssets();
