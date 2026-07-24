@@ -58,6 +58,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.LoginPath = "/Login";
         options.AccessDeniedPath = "/Error";
+        // The auth cookie is hardened globally so every SignInAsync call inherits the same CSRF/session-theft protections.
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.Path = "/";
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
     });
 
 // Allows only trusted browser clients to call the redirect endpoint; CORS preflight is handled with the narrowest policy possible.

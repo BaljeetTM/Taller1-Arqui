@@ -54,7 +54,14 @@ public static class UrlRedirectEndpoint
             }
 
             await linkService.IncrementClicks(link.Id);
-            return Results.Redirect(link.Url);
+
+            // 301 signals a stable, cacheable destination after enough traffic; 307 preserves method semantics for temporary links.
+            if (link.Clicks > 100)
+            {
+                return Results.Redirect(link.Url, permanent: true);
+            }
+
+            return Results.Redirect(link.Url, permanent: false, preserveMethod: true);
         });
     }
 
